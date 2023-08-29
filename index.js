@@ -88,6 +88,13 @@ async function run() {
       res.send(result);
     });
 
+    app.delete("/remove_post/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await postCollection.deleteOne(query);
+      res.send(result);
+    });
+
     // POST LIKED related API's
 
     // post a like
@@ -158,7 +165,7 @@ async function run() {
       res.send(result);
     });
 
-    // get total comment every post
+    // get total comment number every post
     app.get("/total_comments/:postId", async (req, res) => {
       const postId = req.params.postId;
       const pipeline = [
