@@ -20,24 +20,24 @@ app.use(express.json());
 const uri = `mongodb+srv://${process.env.USER_NAME}:${process.env.USER_PASS}@cluster0.et32bhj.mongodb.net/?retryWrites=true&w=majority`;
 
 // JWT middleware, verify JWT
-// const verifyJWT = (req, res, next) => {
-//   const authorization = req.headers.authorization;
-//   // console.log(authorization);
-//   if (!authorization) {
-//     return res.status(401).send({ error: true, message: "unauthorized acess" });
-//   }
-//   const token = authorization.split(" ")[1];
-//   jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
-//     if (err) {
-//       return res
-//         .status(401)
-//         .send({ error: true, message: "unauthorized acess" });
-//     }
-//     // console.log(decoded);
-//     req.decoded = decoded;
-//     next();
-//   });
-// };
+const verifyJWT = (req, res, next) => {
+  const authorization = req.headers.authorization;
+  // console.log(authorization);
+  if (!authorization) {
+    return res.status(401).send({ error: true, message: "unauthorized acess" });
+  }
+  const token = authorization.split(" ")[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
+    if (err) {
+      return res
+        .status(401)
+        .send({ error: true, message: "unauthorized access" });
+    }
+    // console.log(decoded);
+    req.decoded = decoded;
+    next();
+  });
+};
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -53,25 +53,40 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
 
+    const userCollection = client.db("nhSocialDB").collection("users");
     const postCollection = client.db("nhSocialDB").collection("posts");
     const likeCollection = client.db("nhSocialDB").collection("likes");
     const commentCollection = client.db("nhSocialDB").collection("comments");
-    // const favoriteCollection = client.db("moviesDB").collection("favorite");
-    // const saveCollection = client.db("moviesDB").collection("save");
-    // const paymentCollection = client.db("moviesDB").collection("payment");
-    // const subscriptionCollection = client
-    //   .db("moviesDB")
-    //   .collection("subscriptions");
 
     // sign jwt
-    // app.post("/jwt", (req, res) => {
-    //   const user = req.body;
-    //   // console.log(user);
-    //   const token = jwt.sign(user, process.env.ACCESS_TOKEN, {
-    //     expiresIn: "1h",
-    //   });
-    //   res.send({ token });
-    // });
+    app.post("/jwt", (req, res) => {
+      const user = req.body;
+      // console.log(user);
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN, {
+        expiresIn: "1h",
+      });
+      res.send({ token });
+    });
+
+    // User related API's
+
+    // insert a user
+    app.post("/user", async (req, res) => {
+      const user = req.body;
+      const query = { email: user.email };
+      const existingUser = await userCollection.findOne(query);
+      if (existingUser) {
+        return res.send({ message: "user already exist" });
+      }
+      const result = await userCollection.insertOne(user);
+      res.send(result);
+    });
+
+    // get all user
+    app.get("/users", verifyJWT, async (req, res) => {
+      const result = await userCollection.find().toArray();
+      res.send(result);
+    });
 
     // POST / STATUS related API's
 
@@ -83,20 +98,34 @@ async function run() {
     });
 
     // get all post
-    app.get("/posts", async (req, res) => {
+    app.get("/posts", verifyJWT, async (req, res) => {
       const result = await postCollection.find().toArray();
       res.send(result);
     });
 
-    app.delete("/remove_post/:id", async (req, res) => {
+    app.put("/update_post/:id", async (req, res) => {
+      const { post_text } = req.body;
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
+
+      const updatePost = {
+        $set: {
+          post_text,
+        },
+      };
+      const result = await postCollection.updateOne(query, updatePost);
+      res.send(result);
+    });
+
+    app.delete("/remove_post/:id/:user_email", async (req, res) => {
+      const id = req.params.id;
+      const user_email = req.params.user_email;
+      const query = { _id: new ObjectId(id), user_email };
       const result = await postCollection.deleteOne(query);
       res.send(result);
     });
 
     // POST LIKED related API's
-
     // post a like
     app.post("/like", async (req, res) => {
       const like = req.body;
@@ -135,7 +164,7 @@ async function run() {
       const user_email = req.params.user_email;
 
       const likedPosts = await likeCollection
-        .find({ user_email })
+        .find({ email: user_email })
         .project({ postId: 1, _id: 0 })
         .toArray();
       const postIds = likedPosts.map((like) => like.postId);
@@ -152,7 +181,7 @@ async function run() {
     app.delete("/unlike/:postId/:user_email", async (req, res) => {
       const postId = req.params.postId;
       const user_email = req.params.user_email;
-      const query = { postId, user_email };
+      const query = { postId, email: user_email };
       const result = await likeCollection.deleteOne(query);
       res.send(result);
     });
