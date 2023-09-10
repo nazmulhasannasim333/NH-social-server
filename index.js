@@ -88,18 +88,35 @@ async function run() {
       res.send(result);
     });
 
+    // get specific one user
+    app.get("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const result = await userCollection.findOne(query);
+      res.send(result);
+    });
+
     // POST / STATUS related API's
 
     // insert a user post
     app.post("/post", async (req, res) => {
       const post = req.body;
+      post.date = new Date();
       const result = await postCollection.insertOne(post);
       res.send(result);
     });
 
     // get all post
-    app.get("/posts", verifyJWT, async (req, res) => {
-      const result = await postCollection.find().toArray();
+    app.get("/posts", async (req, res) => {
+      const { date } = req.body;
+      const result = await postCollection.find().sort({ date: -1 }).toArray();
+      res.send(result);
+    });
+
+    app.get("/my_post/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { user_email: email };
+      const result = await postCollection.find(query).toArray();
       res.send(result);
     });
 
