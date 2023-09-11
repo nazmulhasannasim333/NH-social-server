@@ -70,6 +70,12 @@ async function run() {
 
     // User related API's
 
+    // get all user
+    app.get("/users", verifyJWT, async (req, res) => {
+      const result = await userCollection.find().toArray();
+      res.send(result);
+    });
+
     // insert a user
     app.post("/user", async (req, res) => {
       const user = req.body;
@@ -79,12 +85,6 @@ async function run() {
         return res.send({ message: "user already exist" });
       }
       const result = await userCollection.insertOne(user);
-      res.send(result);
-    });
-
-    // get all user
-    app.get("/users", verifyJWT, async (req, res) => {
-      const result = await userCollection.find().toArray();
       res.send(result);
     });
 
@@ -98,6 +98,28 @@ async function run() {
 
     // POST / STATUS related API's
 
+    // search post by index
+    const indexKeys = { post_text: 1, name: 1 };
+    const indexOptions = { name: "namePostText" };
+    const result = await postCollection.createIndex(indexKeys, indexOptions);
+
+    // get all post and also search by search text
+    app.get("/posts", async (req, res) => {
+      const searchText = req.query.text;
+      const { date } = req.body;
+      const query = {
+        $or: [
+          { post_text: { $regex: searchText, $options: "i" } },
+          { name: { $regex: searchText, $options: "i" } },
+        ],
+      };
+      const result = await postCollection
+        .find(query)
+        .sort({ date: -1 })
+        .toArray();
+      res.send(result);
+    });
+
     // insert a user post
     app.post("/post", async (req, res) => {
       const post = req.body;
@@ -106,20 +128,19 @@ async function run() {
       res.send(result);
     });
 
-    // get all post
-    app.get("/posts", async (req, res) => {
-      const { date } = req.body;
-      const result = await postCollection.find().sort({ date: -1 }).toArray();
-      res.send(result);
-    });
-
+    // get user profile post
     app.get("/my_post/:email", async (req, res) => {
       const email = req.params.email;
+      const { date } = req.body;
       const query = { user_email: email };
-      const result = await postCollection.find(query).toArray();
+      const result = await postCollection
+        .find(query)
+        .sort({ date: -1 })
+        .toArray();
       res.send(result);
     });
 
+    // update a post
     app.put("/update_post/:id", async (req, res) => {
       const { post_text } = req.body;
       const id = req.params.id;
@@ -133,7 +154,7 @@ async function run() {
       const result = await postCollection.updateOne(query, updatePost);
       res.send(result);
     });
-
+    // delete a post
     app.delete("/remove_post/:id/:user_email", async (req, res) => {
       const id = req.params.id;
       const user_email = req.params.user_email;
