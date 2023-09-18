@@ -76,6 +76,14 @@ async function run() {
       res.send(result);
     });
 
+    // get specific one user
+    app.get("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const result = await userCollection.findOne(query);
+      res.send(result);
+    });
+
     // insert a user
     app.post("/user", async (req, res) => {
       const user = req.body;
@@ -88,11 +96,39 @@ async function run() {
       res.send(result);
     });
 
-    // get specific one user
-    app.get("/user/:email", async (req, res) => {
-      const email = req.params.email;
-      const query = { email };
-      const result = await userCollection.findOne(query);
+    // update user profile
+    app.put("/updateProfile/:email", async (req, res) => {
+      const params_email = req.params.email;
+      const {
+        name,
+        email,
+        user_name,
+        phone,
+        gender,
+        website,
+        address,
+        university,
+        about,
+        photo,
+      } = req.body;
+      const filter = { email: params_email };
+      const updateUserProfile = {
+        $set: {
+          name,
+          email,
+          user_name,
+          phone,
+          gender,
+          website,
+          address,
+          university,
+          about,
+        },
+      };
+      if (photo) {
+        updateUserProfile.$set.photo = photo;
+      }
+      const result = userCollection.updateOne(filter, updateUserProfile);
       res.send(result);
     });
 
@@ -107,12 +143,17 @@ async function run() {
     app.get("/posts", async (req, res) => {
       const searchText = req.query.text;
       const { date } = req.body;
-      const query = {
-        $or: [
-          { post_text: { $regex: searchText, $options: "i" } },
-          { name: { $regex: searchText, $options: "i" } },
-        ],
-      };
+
+      // Check if searchText is defined and not an empty string
+      const query = searchText
+        ? {
+            $or: [
+              { post_text: { $regex: searchText, $options: "i" } },
+              { name: { $regex: searchText, $options: "i" } },
+            ],
+          }
+        : {}; // Empty query when searchText is not provided
+
       const result = await postCollection
         .find(query)
         .sort({ date: -1 })
@@ -137,6 +178,23 @@ async function run() {
         .find(query)
         .sort({ date: -1 })
         .toArray();
+      res.send(result);
+    });
+
+    app.put("/update_post_author/:email", async (req, res) => {
+      const params_email = req.params.email;
+      const { name, user_name, user_photo } = req.body;
+      const filter = { user_email: params_email };
+      const updatePostAuthor = {
+        $set: {
+          name,
+          user_name,
+        },
+      };
+      if (user_photo) {
+        updatePostAuthor.$set.user_photo = user_photo;
+      }
+      const result = postCollection.updateMany(filter, updatePostAuthor);
       res.send(result);
     });
 
@@ -268,6 +326,22 @@ async function run() {
       ];
 
       const result = await commentCollection.aggregate(pipeline).toArray();
+      res.send(result);
+    });
+
+    app.put("/update_comment_author/:email", async (req, res) => {
+      const params_email = req.params.email;
+      const { name, user_photo } = req.body;
+      const filter = { email: params_email };
+      const updatePostAuthor = {
+        $set: {
+          name,
+        },
+      };
+      if (user_photo) {
+        updatePostAuthor.$set.user_photo = user_photo;
+      }
+      const result = commentCollection.updateMany(filter, updatePostAuthor);
       res.send(result);
     });
 
