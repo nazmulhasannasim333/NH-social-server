@@ -96,7 +96,7 @@ async function run() {
       res.send(result);
     });
 
-    // update user profile
+    // update logged user profile
     app.put("/updateProfile/:email", async (req, res) => {
       const params_email = req.params.email;
       const {
@@ -129,6 +129,14 @@ async function run() {
         updateUserProfile.$set.photo = photo;
       }
       const result = userCollection.updateOne(filter, updateUserProfile);
+      res.send(result);
+    });
+
+    // show any user profile
+    app.get("/user-profile/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const result = await userCollection.findOne(query);
       res.send(result);
     });
 
@@ -169,7 +177,7 @@ async function run() {
       res.send(result);
     });
 
-    // get user profile post
+    // get logged user profile post
     app.get("/my_post/:email", async (req, res) => {
       const email = req.params.email;
       const { date } = req.body;
@@ -181,6 +189,19 @@ async function run() {
       res.send(result);
     });
 
+    // get user profile post
+    app.get("/user-profile-post/:email", async (req, res) => {
+      const email = req.params.email;
+      const { date } = req.body;
+      const query = { user_email: email };
+      const result = await postCollection
+        .find(query)
+        .sort({ date: -1 })
+        .toArray();
+      res.send(result);
+    });
+
+    // update user in post
     app.put("/update_post_author/:email", async (req, res) => {
       const params_email = req.params.email;
       const { name, user_name, user_photo } = req.body;
@@ -329,6 +350,7 @@ async function run() {
       res.send(result);
     });
 
+    // update user in comment
     app.put("/update_comment_author/:email", async (req, res) => {
       const params_email = req.params.email;
       const { name, user_photo } = req.body;
