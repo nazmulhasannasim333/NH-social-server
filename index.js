@@ -152,7 +152,7 @@ async function run() {
       const searchText = req.query.text;
       const { date } = req.body;
 
-      // Check if searchText is defined and not an empty string
+      // Check if searchText is defined and not an empty string.
       const query = searchText
         ? {
             $or: [
